@@ -1,0 +1,22 @@
+name: RodentPro price check
+
+on:
+  schedule:
+    # 03:00 UTC = 8:00 PM Pacific Daylight Time (UTC-7).
+    # During Pacific Standard Time (UTC-8, roughly Nov-Mar), this runs at 7:00 PM PT instead.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run price check
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          SMS_GATEWAY: ${{ secrets.SMS_GATEWAY }}
+        run: python3 price_tracker.py
