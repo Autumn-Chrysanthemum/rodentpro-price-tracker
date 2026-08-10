@@ -1,0 +1,6 @@
+secrets.json
+logs/
+__pycache__/
+.idea/
+venv/
+.claude/
