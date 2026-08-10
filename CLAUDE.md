@@ -5,8 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A single-purpose script that checks prices for tracked items on rodentpro.com and sends an
-email/SMS notification when a price drops to or below a target. It runs both on demand and
-automatically once a day via a macOS `launchd` agent.
+email/SMS notification when a price drops to or below a target. It runs on demand locally, and
+automatically once a day via a scheduled GitHub Actions workflow (the source of truth for the
+daily schedule — see "Cloud schedule" below).
+
+Repo: https://github.com/Autumn-Chrysanthemum/rodentpro-price-tracker
 
 ## Commands
 
@@ -15,23 +18,39 @@ Run a price check manually:
 python3 price_tracker.py
 ```
 
-View the run history:
+View the run history from a local run:
 ```
 cat logs/price_tracker.log
 ```
 
-Manage the daily launchd schedule (currently set to run at 8:00 PM):
+View recent cloud runs and their logs:
 ```
-launchctl load ~/Library/LaunchAgents/com.nataliavolkova.rodentpro.pricecheck.plist    # activate
-launchctl unload ~/Library/LaunchAgents/com.nataliavolkova.rodentpro.pricecheck.plist  # deactivate
-launchctl list | grep rodentpro                                                        # check status
+gh run list --workflow=price_check.yml
+gh run view <run-id> --log
 ```
-launchd's own stdout/stderr for the scheduled run land in `logs/launchd.out.log` and
-`logs/launchd.err.log` (should normally be empty — actual run output goes to
-`logs/price_tracker.log` via the script's own logging).
+
+Trigger a cloud run on demand (outside the daily schedule):
+```
+gh workflow run price_check.yml
+```
 
 No test suite, linter, or build step — this is a single script with no dependencies outside
 the Python standard library.
+
+## Cloud schedule
+
+`.github/workflows/price_check.yml` runs `price_tracker.py` daily via `schedule: cron: "0 3 * * *"`
+(03:00 UTC = 8:00 PM Pacific Daylight Time; drifts to 7:00 PM during Pacific Standard Time /
+winter months, since GitHub Actions cron doesn't account for DST). Credentials are injected as
+repo secrets (`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `NOTIFY_EMAIL`, `SMS_GATEWAY`) rather than a
+committed `secrets.json` — `load_secrets()` falls back to these environment variables when
+`secrets.json` isn't present on disk (see Architecture below).
+
+A local macOS `launchd` agent (`com.nataliavolkova.rodentpro.pricecheck.plist`) was set up
+first and later unloaded once the cloud schedule was confirmed working, to avoid duplicate
+alerts — the plist file is kept in the repo for reference but is not currently loaded. To change
+the tracked items or their target prices, edit `items.json` and push; the cloud run always uses
+whatever is on `main`.
 
 ## Architecture
 
